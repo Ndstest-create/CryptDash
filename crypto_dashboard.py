@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -21,6 +20,9 @@ end_date = datetime.today().strftime('%Y-%m-%d')
 @st.cache_data
 def load_data(symbol, start, end):
     df = yf.download(symbol, start=start, end=end)
+    if 'Close' not in df.columns:
+        st.error("ไม่สามารถโหลดข้อมูลราคาปิดได้ กรุณาตรวจสอบชื่อเหรียญหรืออินเทอร์เน็ต")
+        return pd.DataFrame()
     df = df[['Close']]
     df.dropna(inplace=True)
     df.reset_index(inplace=True)
@@ -28,8 +30,10 @@ def load_data(symbol, start, end):
 
 data = load_data(crypto, start_date, end_date)
 
-# ตรวจสอบข้อมูลก่อนคำนวณอินดิเคเตอร์
-data = data.dropna(subset=["Close"])
+# หยุดโปรแกรมหากไม่มีข้อมูล
+if data.empty:
+    st.warning("ไม่มีข้อมูลให้แสดงผล")
+    st.stop()
 
 # คำนวณ MACD
 macd_calc = MACD(close=data['Close'])
@@ -41,7 +45,7 @@ stoch_calc = StochasticOscillator(high=data['Close'], low=data['Close'], close=d
 data["Stoch_K"] = stoch_calc.stoch()
 data["Stoch_D"] = stoch_calc.stoch_signal()
 
-# ลบค่าที่ยังคำนวณไม่ครบ
+# ลบค่าที่อินดิเคเตอร์ยังคำนวณไม่ครบ
 data.dropna(inplace=True)
 
 # พยากรณ์ราคาวันถัดไป
