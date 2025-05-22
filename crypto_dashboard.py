@@ -25,7 +25,7 @@ if "Close" in data.columns:
 else:
     st.error("❌ ไม่พบคอลัมน์ 'Close' ในข้อมูลที่โหลดมา")
     st.write("คอลัมน์ที่พบ:", list(data.columns))
-    st.stop()
+
 
 # คำนวณ MACD
 macd_calc = MACD(close=data["Close"], window_slow=26, window_fast=12, window_sign=9)
