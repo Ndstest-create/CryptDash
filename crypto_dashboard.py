@@ -25,8 +25,8 @@ data = yf.download(symbol, start="2021-01-01")
 data = data[["Close"]].dropna()
 
 # Calculate indicators
-macd_calc = MACD(close=data["Close"])
-data["MACD"] = pd.Series(macd_calc.macd_diff(), index=data.index)
+macd_df = macd_calc.macd_diff()
+data["MACD"] = macd_df.iloc[:, 0] if isinstance(macd_df, pd.DataFrame) else macd_df
 
 stoch_calc = StochasticOscillator(high=data["Close"], low=data["Close"], close=data["Close"])
 data["Stoch %K"] = stoch_calc.stoch()
