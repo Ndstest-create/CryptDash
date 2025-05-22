@@ -43,13 +43,18 @@ if data.empty or "Close" not in data.columns:
     st.stop()
 
 # --- Indicators ---
-macd_calc = MACD(close=data["Close"])
-data["MACD"] = macd_calc.macd()
-data["Signal"] = macd_calc.macd_signal()
+if len(data) > 35:
+    macd_calc = MACD(close=data["Close"], fillna=False)
+    macd_values = macd_calc.macd()
+    signal_values = macd_calc.macd_signal()
+    data["MACD"] = macd_values
+    data["Signal"] = signal_values
 
-stoch_calc = StochasticOscillator(high=data["High"], low=data["Low"], close=data["Close"])
-data["Stoch_%K"] = stoch_calc.stoch()
-data["Stoch_%D"] = stoch_calc.stoch_signal()
+    stoch_calc = StochasticOscillator(high=data["High"], low=data["Low"], close=data["Close"], fillna=False)
+    data["Stoch_%K"] = stoch_calc.stoch()
+    data["Stoch_%D"] = stoch_calc.stoch_signal()
+else:
+    st.warning("📉 ข้อมูลมีน้อยเกินไปสำหรับคำนวณ MACD และ Stochastic Oscillator (ต้องมากกว่า 35 วัน)")
 
 # --- Display Charts ---
 st.subheader(f"📈 กราฟราคา {crypto_name}")
@@ -61,21 +66,23 @@ ax.grid(True)
 ax.legend()
 st.pyplot(fig)
 
-st.subheader("📉 MACD")
-fig2, ax2 = plt.subplots(figsize=(12, 3))
-ax2.plot(data["Date"], data["MACD"], label="MACD", color="blue")
-ax2.plot(data["Date"], data["Signal"], label="Signal", color="orange")
-ax2.axhline(0, color="gray", linestyle="--", linewidth=1)
-ax2.legend()
-ax2.grid(True)
-st.pyplot(fig2)
+if "MACD" in data.columns:
+    st.subheader("📉 MACD")
+    fig2, ax2 = plt.subplots(figsize=(12, 3))
+    ax2.plot(data["Date"], data["MACD"], label="MACD", color="blue")
+    ax2.plot(data["Date"], data["Signal"], label="Signal", color="orange")
+    ax2.axhline(0, color="gray", linestyle="--", linewidth=1)
+    ax2.legend()
+    ax2.grid(True)
+    st.pyplot(fig2)
 
-st.subheader("📊 Stochastic Oscillator")
-fig3, ax3 = plt.subplots(figsize=(12, 3))
-ax3.plot(data["Date"], data["Stoch_%K"], label="%K", color="purple")
-ax3.plot(data["Date"], data["Stoch_%D"], label="%D", color="green")
-ax3.axhline(80, color="red", linestyle="--", linewidth=1)
-ax3.axhline(20, color="blue", linestyle="--", linewidth=1)
-ax3.legend()
-ax3.grid(True)
-st.pyplot(fig3)
+if "Stoch_%K" in data.columns:
+    st.subheader("📊 Stochastic Oscillator")
+    fig3, ax3 = plt.subplots(figsize=(12, 3))
+    ax3.plot(data["Date"], data["Stoch_%K"], label="%K", color="purple")
+    ax3.plot(data["Date"], data["Stoch_%D"], label="%D", color="green")
+    ax3.axhline(80, color="red", linestyle="--", linewidth=1)
+    ax3.axhline(20, color="blue", linestyle="--", linewidth=1)
+    ax3.legend()
+    ax3.grid(True)
+    st.pyplot(fig3)
