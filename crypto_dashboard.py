@@ -27,11 +27,16 @@ def load_data(symbol):
     data.dropna(inplace=True)
     return data
 
+# ตรวจสอบว่ามีคอลัมน์ Close ก่อน
+if "Close" not in data.columns:
+    st.error("ไม่พบคอลัมน์ 'Close' ในข้อมูลที่โหลดมา กรุณาตรวจสอบ symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
+    st.stop()
+
 data = load_data(symbol)
 
 from ta.trend import MACD
 
-# ล้างข้อมูลก่อน (ถ้าจำเป็น)
+# ลบแถวที่มีค่า NaN ในคอลัมน์ Close
 data = data.dropna(subset=["Close"])
 
 # สร้าง MACD
