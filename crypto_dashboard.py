@@ -1,113 +1,81 @@
 import streamlit as st
-import yfinance as yf
 import pandas as pd
+import yfinance as yf
 import matplotlib.pyplot as plt
-from datetime import datetime
-from ta.momentum import StochasticOscillator
 from ta.trend import MACD
-from sklearn.linear_model import LinearRegression
-import numpy as np
+from ta.momentum import StochasticOscillator
+from datetime import date
 
 st.set_page_config(page_title="Crypto Dashboard", layout="wide")
-st.title("📊 Crypto Dashboard: วิเคราะห์ราคาคริปโตพร้อมอินดิเคเตอร์")
 
-# Sidebar
-crypto = st.sidebar.selectbox("เลือกเหรียญ", ["BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD"])
-start_date = st.sidebar.date_input("จากวันที่", value=datetime(2021, 1, 1))
-end_date = datetime.today().strftime('%Y-%m-%d')
+st.title("📊 Crypto Investment Dashboard")
+st.markdown("แดชบอร์ดวิเคราะห์ราคา BTC, ETH, BNB, SOL พร้อม MACD และ Stochastic Oscillator")
 
-# โหลดข้อมูล
+# --- Sidebar ---
+st.sidebar.header("ตั้งค่า")
+crypto_options = {
+    "Bitcoin (BTC)": "BTC-USD",
+    "Ethereum (ETH)": "ETH-USD",
+    "BNB (BNB)": "BNB-USD",
+    "Solana (SOL)": "SOL-USD"
+}
+crypto_name = st.sidebar.selectbox("เลือกเหรียญ", list(crypto_options.keys()))
+crypto_symbol = crypto_options[crypto_name]
+
+start_date = st.sidebar.date_input("วันที่เริ่มต้น", date(2021, 1, 1))
+end_date = st.sidebar.date_input("วันที่สิ้นสุด", date.today())
+
+# --- Load Data ---
 @st.cache_data
 def load_data(symbol, start, end):
     df = yf.download(symbol, start=start, end=end)
-    
-    # ตรวจว่ามีข้อมูลและมีคอลัมน์ Close
     if df.empty or "Close" not in df.columns:
-        return pd.DataFrame()  # คืน empty DataFrame
-    
-    df = df[["Close"]].copy()
+        return pd.DataFrame()
+    df = df[["Open", "High", "Low", "Close", "Volume"]].copy()
     df.dropna(inplace=True)
     df.reset_index(inplace=True)
     return df
 
-data = load_data(crypto, start_date, end_date)
+data = load_data(crypto_symbol, start_date, end_date)
 
-# ✅ ตรวจสอบอีกครั้งก่อนใช้งาน
 if data.empty or "Close" not in data.columns:
-    st.error("⚠️ ไม่สามารถโหลดข้อมูลเหรียญ หรือไม่มีคอลัมน์ 'Close'")
+    st.error("⚠️ ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบชื่อเหรียญหรือช่วงเวลา")
     st.stop()
 
-# ✅ จากนี้ไปปลอดภัยแล้ว
+# --- Indicators ---
+macd_calc = MACD(close=data["Close"])
+data["MACD"] = macd_calc.macd()
+data["Signal"] = macd_calc.macd_signal()
 
-data = load_data(crypto, start_date, end_date)
+stoch_calc = StochasticOscillator(high=data["High"], low=data["Low"], close=data["Close"])
+data["Stoch_%K"] = stoch_calc.stoch()
+data["Stoch_%D"] = stoch_calc.stoch_signal()
 
-# หยุดโปรแกรมหากไม่มีข้อมูล
-if "Close" in data.columns:
-    data.dropna(subset=["Close"], inplace=True)
-else:
-    st.error("ไม่มีคอลัมน์ 'Close' ในข้อมูล กรุณาตรวจสอบแหล่งข้อมูลหรือชื่อเหรียญ")
-    st.stop()
+# --- Display Charts ---
+st.subheader(f"📈 กราฟราคา {crypto_name}")
+fig, ax = plt.subplots(figsize=(12, 4))
+ax.plot(data["Date"], data["Close"], label="Close Price")
+ax.set_title(f"{crypto_name} - Close Price")
+ax.set_ylabel("USD")
+ax.grid(True)
+ax.legend()
+st.pyplot(fig)
 
-
-# ลบ NaN อีกรอบสำหรับ MACD/Stochastic
-data.dropna(subset=["Close"], inplace=True)
-
-# เตรียมข้อมูลให้เป็น Series 1D สำหรับอินดิเคเตอร์
-close_prices = data["Close"].dropna()
-close_series = pd.Series(close_prices.values, index=data["Date"].iloc[-len(close_prices):])
-
-# คำนวณ MACD
-macd = MACD(close=close_series)
-data = data.iloc[-len(close_series):].copy()  # sync ความยาว
-data["MACD"] = macd.macd()
-data["MACD_Signal"] = macd.macd_signal()
-
-# คำนวณ Stochastic Oscillator
-stoch = StochasticOscillator(high=close_series, low=close_series, close=close_series)
-data["Stoch_K"] = stoch.stoch()
-data["Stoch_D"] = stoch.stoch_signal()
-
-# ลบค่าที่อินดิเคเตอร์ยังคำนวณไม่ครบ
-data.dropna(inplace=True)
-
-# พยากรณ์ราคาวันถัดไป
-def forecast_price(df):
-    df = df.copy()
-    df['Day'] = np.arange(len(df)).reshape(-1, 1)
-    X = df['Day'].values.reshape(-1, 1)
-    y = df['Close'].values.reshape(-1, 1)
-    model = LinearRegression()
-    model.fit(X, y)
-    next_day = np.array([[len(df)]])
-    pred_price = model.predict(next_day)[0][0]
-    return pred_price
-
-predicted_price = forecast_price(data)
-
-# แสดงกราฟราคาพร้อม MACD
-st.subheader(f"📈 ราคาและ MACD: {crypto}")
-fig1, ax1 = plt.subplots(figsize=(12, 6))
-ax1.plot(data['Date'], data['Close'], label='Close Price', color='blue')
-ax1.set_ylabel("Price (USD)")
-ax1.legend(loc="upper left")
-
-ax2 = ax1.twinx()
-ax2.plot(data['Date'], data['MACD'], label="MACD", color='green')
-ax2.plot(data['Date'], data['MACD_Signal'], label="Signal", color='red')
-ax2.set_ylabel("MACD")
-ax2.legend(loc="upper right")
-st.pyplot(fig1)
-
-# แสดง Stochastic Oscillator
-st.subheader("📉 Stochastic Oscillator")
-fig2, ax3 = plt.subplots(figsize=(12, 3))
-ax3.plot(data['Date'], data['Stoch_K'], label='%K', color='purple')
-ax3.plot(data['Date'], data['Stoch_D'], label='%D', color='orange')
-ax3.axhline(80, color='gray', linestyle='--')
-ax3.axhline(20, color='gray', linestyle='--')
-ax3.legend()
+st.subheader("📉 MACD")
+fig2, ax2 = plt.subplots(figsize=(12, 3))
+ax2.plot(data["Date"], data["MACD"], label="MACD", color="blue")
+ax2.plot(data["Date"], data["Signal"], label="Signal", color="orange")
+ax2.axhline(0, color="gray", linestyle="--", linewidth=1)
+ax2.legend()
+ax2.grid(True)
 st.pyplot(fig2)
 
-# แสดงราคาที่คาดการณ์
-st.subheader("🔮 พยากรณ์ราคาวันถัดไป")
-st.success(f"📌 ราคาที่คาดการณ์สำหรับ {crypto} คือ: **${predicted_price:,.2f} USD**")
+st.subheader("📊 Stochastic Oscillator")
+fig3, ax3 = plt.subplots(figsize=(12, 3))
+ax3.plot(data["Date"], data["Stoch_%K"], label="%K", color="purple")
+ax3.plot(data["Date"], data["Stoch_%D"], label="%D", color="green")
+ax3.axhline(80, color="red", linestyle="--", linewidth=1)
+ax3.axhline(20, color="blue", linestyle="--", linewidth=1)
+ax3.legend()
+ax3.grid(True)
+st.pyplot(fig3)
