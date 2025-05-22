@@ -18,9 +18,17 @@ if symbol:
         st.error("❌ ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบชื่อ Symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
         st.stop()
 
+    if not isinstance(data, pd.DataFrame):
+        st.error("❌ ข้อมูลไม่อยู่ในรูปแบบ DataFrame")
+        st.stop()
+
     if "Close" not in data.columns:
         st.error("❌ ข้อมูลไม่มีคอลัมน์ 'Close' ไม่สามารถประมวลผลได้")
-        st.write("Columns ที่พบ:", data.columns.tolist())
+        st.write("Columns ที่พบ:", list(data.columns))
+        st.stop()
+
+    if data["Close"].isna().all():
+        st.error("❌ คอลัมน์ 'Close' ไม่มีข้อมูล")
         st.stop()
 
     # Drop rows where 'Close' is NaN
