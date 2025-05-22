@@ -73,3 +73,9 @@ fig_stoch.add_hline(y=80, line_dash="dot", line_color="red")
 fig_stoch.add_hline(y=20, line_dash="dot", line_color="green")
 fig_stoch.update_layout(height=300, margin=dict(l=10, r=10, t=30, b=10))
 st.plotly_chart(fig_stoch, use_container_width=True)
+
+if "Close" in data.columns:
+    data = data.dropna(subset=["Close"])
+else:
+    st.error("ไม่พบคอลัมน์ Close ในข้อมูล กรุณาตรวจสอบ symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
+    st.stop()
