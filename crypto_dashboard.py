@@ -30,9 +30,12 @@ def load_data(symbol, start, end):
 data = load_data(crypto, start_date, end_date)
 
 # หยุดโปรแกรมหากไม่มีข้อมูล
-if data.empty or 'Close' not in data.columns:
-    st.error("ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือชื่อเหรียญ")
+if "Close" in data.columns:
+    data.dropna(subset=["Close"], inplace=True)
+else:
+    st.error("ไม่มีคอลัมน์ 'Close' ในข้อมูล กรุณาตรวจสอบแหล่งข้อมูลหรือชื่อเหรียญ")
     st.stop()
+
 
 # ลบ NaN อีกรอบสำหรับ MACD/Stochastic
 data.dropna(subset=["Close"], inplace=True)
