@@ -18,10 +18,6 @@ data = yf.download(symbol, start="2022-01-01")
 if data.empty:
     st.error("⚠️ ไม่พบข้อมูลจาก Yahoo Finance")
     st.stop()
-
-# เช็กว่ามีคอลัมน์ Close หรือไม่
-if "Close" in data.columns:
-    data = data.dropna(subset=["Close"])
 else:
     st.error("❌ ไม่พบคอลัมน์ 'Close' ในข้อมูลที่โหลดมา")
     st.write("คอลัมน์ที่พบ:", list(data.columns))
