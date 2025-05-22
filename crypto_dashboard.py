@@ -20,12 +20,24 @@ end_date = datetime.today().strftime('%Y-%m-%d')
 @st.cache_data
 def load_data(symbol, start, end):
     df = yf.download(symbol, start=start, end=end)
-    if 'Close' not in df.columns:
-        return pd.DataFrame()
-    df = df[['Close']]
+    
+    # ตรวจว่ามีข้อมูลและมีคอลัมน์ Close
+    if df.empty or "Close" not in df.columns:
+        return pd.DataFrame()  # คืน empty DataFrame
+    
+    df = df[["Close"]].copy()
     df.dropna(inplace=True)
     df.reset_index(inplace=True)
     return df
+
+data = load_data(crypto, start_date, end_date)
+
+# ✅ ตรวจสอบอีกครั้งก่อนใช้งาน
+if data.empty or "Close" not in data.columns:
+    st.error("⚠️ ไม่สามารถโหลดข้อมูลเหรียญ หรือไม่มีคอลัมน์ 'Close'")
+    st.stop()
+
+# ✅ จากนี้ไปปลอดภัยแล้ว
 
 data = load_data(crypto, start_date, end_date)
 
