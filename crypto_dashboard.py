@@ -24,10 +24,6 @@ if "Close" not in data.columns:
     st.write("Columns ที่พบ:", list(data.columns))
     st.stop()
 
-if data["Close"].isna().all():
-    st.error("❌ คอลัมน์ 'Close' ไม่มีข้อมูลที่ใช้ได้")
-    st.stop()
-
 # ทำความสะอาดข้อมูล
 data = data.dropna(subset=["Close"])
 
