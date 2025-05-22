@@ -26,7 +26,7 @@ data = data[["Close"]].dropna()
 
 # Calculate indicators
 macd_calc = MACD(close=data["Close"])
-data["MACD"] = macd_calc.macd_diff()
+data["MACD"] = pd.Series(macd_calc.macd_diff(), index=data.index)
 
 stoch_calc = StochasticOscillator(high=data["Close"], low=data["Close"], close=data["Close"])
 data["Stoch %K"] = stoch_calc.stoch()
