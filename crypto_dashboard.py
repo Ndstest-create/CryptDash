@@ -8,8 +8,8 @@ from ta.trend import MACD
 from sklearn.linear_model import LinearRegression
 import numpy as np
 
-st.set_page_config(page_title="Crypto Multi-Asset Dashboard", layout="wide")
-st.title("📊 Crypto Dashboard: วิเคราะห์ราคาคริปโตและอินดิเคเตอร์")
+st.set_page_config(page_title="Crypto Dashboard", layout="wide")
+st.title("📊 Crypto Dashboard: วิเคราะห์ราคาคริปโตพร้อมอินดิเคเตอร์")
 
 # Sidebar
 crypto = st.sidebar.selectbox("เลือกเหรียญ", ["BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD"])
@@ -21,7 +21,6 @@ end_date = datetime.today().strftime('%Y-%m-%d')
 def load_data(symbol, start, end):
     df = yf.download(symbol, start=start, end=end)
     if 'Close' not in df.columns:
-        st.error("ไม่สามารถโหลดข้อมูลราคาปิดได้ กรุณาตรวจสอบชื่อเหรียญหรืออินเทอร์เน็ต")
         return pd.DataFrame()
     df = df[['Close']]
     df.dropna(inplace=True)
@@ -31,19 +30,27 @@ def load_data(symbol, start, end):
 data = load_data(crypto, start_date, end_date)
 
 # หยุดโปรแกรมหากไม่มีข้อมูล
-if data.empty:
-    st.warning("ไม่มีข้อมูลให้แสดงผล")
+if data.empty or 'Close' not in data.columns:
+    st.error("ไม่สามารถโหลดข้อมูลได้ กรุณาตรวจสอบอินเทอร์เน็ตหรือชื่อเหรียญ")
     st.stop()
 
+# ลบ NaN อีกรอบสำหรับ MACD/Stochastic
+data.dropna(subset=["Close"], inplace=True)
+
+# เตรียมข้อมูลให้เป็น Series 1D สำหรับอินดิเคเตอร์
+close_prices = data["Close"].dropna()
+close_series = pd.Series(close_prices.values, index=data["Date"].iloc[-len(close_prices):])
+
 # คำนวณ MACD
-macd_calc = MACD(close=data['Close'])
-data["MACD"] = macd_calc.macd()
-data["MACD_Signal"] = macd_calc.macd_signal()
+macd = MACD(close=close_series)
+data = data.iloc[-len(close_series):].copy()  # sync ความยาว
+data["MACD"] = macd.macd()
+data["MACD_Signal"] = macd.macd_signal()
 
 # คำนวณ Stochastic Oscillator
-stoch_calc = StochasticOscillator(high=data['Close'], low=data['Close'], close=data['Close'])
-data["Stoch_K"] = stoch_calc.stoch()
-data["Stoch_D"] = stoch_calc.stoch_signal()
+stoch = StochasticOscillator(high=close_series, low=close_series, close=close_series)
+data["Stoch_K"] = stoch.stoch()
+data["Stoch_D"] = stoch.stoch_signal()
 
 # ลบค่าที่อินดิเคเตอร์ยังคำนวณไม่ครบ
 data.dropna(inplace=True)
@@ -62,7 +69,7 @@ def forecast_price(df):
 
 predicted_price = forecast_price(data)
 
-# แสดงกราฟราคากับ MACD
+# แสดงกราฟราคาพร้อม MACD
 st.subheader(f"📈 ราคาและ MACD: {crypto}")
 fig1, ax1 = plt.subplots(figsize=(12, 6))
 ax1.plot(data['Date'], data['Close'], label='Close Price', color='blue')
