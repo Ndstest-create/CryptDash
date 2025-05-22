@@ -29,11 +29,19 @@ def load_data(symbol):
 
 data = load_data(symbol)
 
-# คำนวณ MACD
+from ta.trend import MACD
+
+# ล้างข้อมูลก่อน (ถ้าจำเป็น)
+data = data.dropna(subset=["Close"])
+
+# สร้าง MACD
 macd_calc = MACD(close=data["Close"], window_slow=26, window_fast=12, window_sign=9)
+
+# เพิ่มคอลัมน์ใหม่เข้า dataframe
 data["MACD_Line"] = macd_calc.macd()
 data["MACD_Signal"] = macd_calc.macd_signal()
-data["MACD_Hist"] = macd_calc.macd_diff()
+data["MACD_Diff"] = macd_calc.macd_diff()
+
 
 # คำนวณ Stochastic Oscillator
 stoch = StochasticOscillator(high=data["High"], low=data["Low"], close=data["Close"], window=14, smooth_window=3)
