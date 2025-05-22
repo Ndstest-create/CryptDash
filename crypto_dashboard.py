@@ -24,4 +24,7 @@ symbol = symbols[selected_coin]
 # ดึงข้อมูลย้อนหลัง
 @st.cache_data
 def load_data(symbol):
-    data = yf.download(symbol, start="2
+    data = yf.download(symbol, start="2021-01-01")  # <-- แก้ตรงนี้ให้สมบูรณ์
+    data.reset_index(inplace=True)
+    return data
+
