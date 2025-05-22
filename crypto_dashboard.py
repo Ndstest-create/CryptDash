@@ -19,10 +19,11 @@ if symbol:
         st.stop()
 
     if "Close" not in data.columns:
-        st.error("❌ ไม่มีคอลัมน์ 'Close' ในข้อมูลที่ดึงมา")
+        st.error("❌ ข้อมูลไม่มีคอลัมน์ 'Close' ไม่สามารถประมวลผลได้")
         st.write("Columns ที่พบ:", data.columns.tolist())
         st.stop()
 
+    # Drop rows where 'Close' is NaN
     data = data.dropna(subset=["Close"])
 
     # --- Calculate MACD ---
