@@ -1,86 +1,52 @@
-import yfinance as yf
 import streamlit as st
+import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from ta.trend import MACD
-from ta.momentum import StochasticOscillator
 
-# ตั้งค่าหน้า Streamlit
-st.set_page_config(page_title="Crypto Dashboard", layout="wide")
-st.title("📊 Crypto Dashboard with MACD & Stochastic Indicators")
+st.set_page_config(layout="wide")
+st.title("📊 Crypto Technical Dashboard")
 
-# เลือกเหรียญ
-coins = {
-    "Bitcoin (BTC)": "BTC-USD",
-    "Ethereum (ETH)": "ETH-USD",
-    "Binance Coin (BNB)": "BNB-USD",
-    "Solana (SOL)": "SOL-USD"
-}
+# --- Input ---
+symbol = st.text_input("Enter Crypto Symbol (e.g. BTC-USD, ETH-USD):", "BTC-USD")
 
-coin_name = st.selectbox("เลือกเหรียญที่ต้องการวิเคราะห์", list(coins.keys()))
-symbol = coins[coin_name]
+# --- Load data ---
+if symbol:
+    data = yf.download(symbol, start="2021-01-01")
 
-# ดึงข้อมูลจาก Yahoo Finance
-@st.cache_data
-def load_data(symbol):
-    data = yf.download(symbol, start="2022-01-01")
-    data.dropna(inplace=True)
-    return data
+    if data is None or data.empty:
+        st.error("❌ ไม่สามารถดึงข้อมูลได้ กรุณาตรวจสอบชื่อ Symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
+        st.stop()
 
-# ตรวจสอบว่ามีคอลัมน์ Close ก่อน
-if "Close" not in data.columns:
-    st.error("ไม่พบคอลัมน์ 'Close' ในข้อมูลที่โหลดมา กรุณาตรวจสอบ symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
-    st.stop()
+    if "Close" not in data.columns:
+        st.error("❌ ไม่มีคอลัมน์ 'Close' ในข้อมูลที่ดึงมา")
+        st.write("Columns ที่พบ:", data.columns.tolist())
+        st.stop()
 
-data = load_data(symbol)
-
-from ta.trend import MACD
-
-# ลบแถวที่มีค่า NaN ในคอลัมน์ Close
-data = data.dropna(subset=["Close"])
-
-# สร้าง MACD
-macd_calc = MACD(close=data["Close"], window_slow=26, window_fast=12, window_sign=9)
-
-# เพิ่มคอลัมน์ใหม่เข้า dataframe
-data["MACD_Line"] = macd_calc.macd()
-data["MACD_Signal"] = macd_calc.macd_signal()
-data["MACD_Diff"] = macd_calc.macd_diff()
-
-
-# คำนวณ Stochastic Oscillator
-stoch = StochasticOscillator(high=data["High"], low=data["Low"], close=data["Close"], window=14, smooth_window=3)
-data["%K"] = stoch.stoch()
-data["%D"] = stoch.stoch_signal()
-
-# กราฟราคาปิด
-st.subheader(f"📈 {coin_name} Closing Price")
-fig_price = go.Figure()
-fig_price.add_trace(go.Scatter(x=data.index, y=data["Close"], name="Close", line=dict(color='royalblue')))
-fig_price.update_layout(height=400, margin=dict(l=10, r=10, t=30, b=10))
-st.plotly_chart(fig_price, use_container_width=True)
-
-# กราฟ MACD
-st.subheader("📉 MACD Indicator")
-fig_macd = go.Figure()
-fig_macd.add_trace(go.Scatter(x=data.index, y=data["MACD_Line"], name="MACD Line", line=dict(color='blue')))
-fig_macd.add_trace(go.Scatter(x=data.index, y=data["MACD_Signal"], name="Signal Line", line=dict(color='red')))
-fig_macd.add_trace(go.Bar(x=data.index, y=data["MACD_Hist"], name="Histogram", marker_color='gray'))
-fig_macd.update_layout(height=300, margin=dict(l=10, r=10, t=30, b=10))
-st.plotly_chart(fig_macd, use_container_width=True)
-
-# กราฟ Stochastic Oscillator
-st.subheader("📊 Stochastic Oscillator")
-fig_stoch = go.Figure()
-fig_stoch.add_trace(go.Scatter(x=data.index, y=data["%K"], name="%K", line=dict(color='green')))
-fig_stoch.add_trace(go.Scatter(x=data.index, y=data["%D"], name="%D", line=dict(color='orange')))
-fig_stoch.add_hline(y=80, line_dash="dot", line_color="red")
-fig_stoch.add_hline(y=20, line_dash="dot", line_color="green")
-fig_stoch.update_layout(height=300, margin=dict(l=10, r=10, t=30, b=10))
-st.plotly_chart(fig_stoch, use_container_width=True)
-
-if "Close" in data.columns:
     data = data.dropna(subset=["Close"])
-else:
-    st.error("ไม่พบคอลัมน์ Close ในข้อมูล กรุณาตรวจสอบ symbol หรือการเชื่อมต่ออินเทอร์เน็ต")
-    st.stop()
+
+    # --- Calculate MACD ---
+    macd_calc = MACD(close=data["Close"], window_slow=26, window_fast=12, window_sign=9)
+    data["MACD"] = macd_calc.macd()
+    data["MACD_Signal"] = macd_calc.macd_signal()
+    data["MACD_Diff"] = macd_calc.macd_diff()
+
+    # --- Price Chart ---
+    st.subheader(f"{symbol} Price Chart")
+    fig_price = go.Figure()
+    fig_price.add_trace(go.Scatter(x=data.index, y=data["Close"], name="Close Price", line=dict(color="blue")))
+    fig_price.update_layout(
+        xaxis_title="Date", yaxis_title="Price (USD)", template="plotly_white", height=400
+    )
+    st.plotly_chart(fig_price, use_container_width=True)
+
+    # --- MACD Chart ---
+    st.subheader("MACD Indicator")
+    fig_macd = go.Figure()
+    fig_macd.add_trace(go.Scatter(x=data.index, y=data["MACD"], name="MACD", line=dict(color="orange")))
+    fig_macd.add_trace(go.Scatter(x=data.index, y=data["MACD_Signal"], name="Signal", line=dict(color="green")))
+    fig_macd.add_trace(go.Bar(x=data.index, y=data["MACD_Diff"], name="Histogram", marker_color="gray"))
+    fig_macd.update_layout(
+        xaxis_title="Date", yaxis_title="MACD", template="plotly_white", height=400
+    )
+    st.plotly_chart(fig_macd, use_container_width=True)
